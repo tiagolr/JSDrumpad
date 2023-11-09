@@ -17,11 +17,11 @@ function sine_wave(cycle) (
 );
 
 function tri_wave(cycle) (
-  (cycle > 0.5 ? 2 * cycle - 1 : -2 * cycle + 1) - 0.5 ;
+  (cycle > 0.5 ? 4 * cycle - 2 : -4 * cycle + 2) - 1;
 );
 
 function saw_wave(cycle) (
-  cycle * 2 - 1;
+  cycle * -2 + 1;
 );
 
 function square_wave(cycle) (
