@@ -1,0 +1,49 @@
+desc:JSDrumpad
+
+slider1:osc_freq=440<20,10000,1>Frequency (Hz)
+slider2:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
+slider4:vol=-12<-62,0,.01>Volume
+
+@init
+
+osc_cycle = 0;
+
+function wrap(number) (
+  number <= 1 ? number : 0;
+);
+
+function sine_wave(cycle) (
+  sin(cycle * 2 * $pi);
+);
+
+function tri_wave(cycle) (
+  (cycle > 0.5 ? 2 * cycle - 1 : -2 * cycle + 1) - 0.5 ;
+);
+
+function saw_wave(cycle) (
+  cycle * 2 - 1;
+);
+
+function square_wave(cycle) (
+  cycle < 0.5 ? -1 : 1;
+);
+
+function wave(cycle) (
+  osc_wave == 0 ? sine_wave(cycle)
+    : osc_wave == 1 ? tri_wave(cycle)
+    : osc_wave == 2 ? saw_wave(cycle)
+      : square_wave(cycle)
+);
+
+function db2gain(db) ( 
+  10^(db / 20);
+);
+
+@slider
+
+gain_vol = db2gain(vol);
+
+@sample
+
+osc_cycle = wrap(osc_cycle + osc_freq / srate);
+spl0 = spl1 = wave(osc_cycle) * gain_vol;
