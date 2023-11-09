@@ -1,8 +1,12 @@
 desc:JSDrumpad
 
-slider1:osc_freq=440<20,10000,1>Frequency (Hz)
-slider2:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
+slider1:mix=0<-1,1,.01>Mix (Osc - Noise)
+slider2:osc_freq=440<20,10000,1:log>Frequency (Hz)
+slider3:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
 slider4:vol=-12<-62,0,.01>Volume
+slider5:pan=0<-1,1,.01>Pan
+
+slider7:noise_stereo=0<0,1,1{No, Yes}>Stereo noise
 
 @init
 
@@ -28,7 +32,11 @@ function square_wave(cycle) (
   cycle < 0.5 ? -1 : 1;
 );
 
-function wave(cycle) (
+function make_noise(cycle) (
+  rand(2) - 1;
+);
+
+function make_wave(cycle) (
   osc_wave == 0 ? sine_wave(cycle)
     : osc_wave == 1 ? tri_wave(cycle)
     : osc_wave == 2 ? saw_wave(cycle)
@@ -46,4 +54,27 @@ gain_vol = db2gain(vol);
 @sample
 
 osc_cycle = wrap(osc_cycle + osc_freq / srate);
-spl0 = spl1 = wave(osc_cycle) * gain_vol;
+wave_l = make_wave(osc_cycle);
+wave_r = wave_l;
+noise_l = make_noise();
+noise_r = noise_stereo ? make_noise() : noise_l;
+
+mix < 0 ? (
+  noise_l *= 1 + mix;
+  noise_r *= 1 + mix;
+);
+mix > 0 ? (
+  wave_l *= 1 - mix;
+  wave_r *= 1 - mix;
+);
+pan < 0 ? (
+  noise_r *= 1 + pan;
+  wave_r *= 1 + pan;
+);
+pan > 0 ? (
+  noise_l *= 1 - pan;
+  wave_l *= 1 - pan;
+);
+
+spl0 = (noise_l + wave_l) * gain_vol;
+spl1 = (noise_r + wave_r) * gain_vol;
