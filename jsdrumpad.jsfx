@@ -5,6 +5,7 @@ slider2:osc_freq=440<20,10000,1:log>Frequency (Hz)
 slider3:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
 slider4:vol=-12<-62,0,.01>Volume
 slider5:pan=0<-1,1,.01>Pan
+slider6:distortion=0<0,1,.01>Distortion
 
 slider7:noise_stereo=0<0,1,1{No, Yes}>Stereo noise
 
@@ -49,7 +50,8 @@ function db2gain(db) (
 
 @slider
 
-gain_vol = db2gain(vol);
+gain = db2gain(vol);
+drive = 2*min(distortion, 0.999)/(1-min(distortion, 0.999))
 
 @sample
 
@@ -76,5 +78,13 @@ pan > 0 ? (
   wave_l *= 1 - pan;
 );
 
-spl0 = (noise_l + wave_l) * gain_vol;
-spl1 = (noise_r + wave_r) * gain_vol;
+spl0 = (noise_l + wave_l);
+spl1 = (noise_r + wave_r);
+
+distortion > 0 ? (
+  spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
+  spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
+);
+
+spl0 *= gain;
+spl1 *= gain;
