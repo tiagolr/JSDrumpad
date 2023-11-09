@@ -1,13 +1,19 @@
 desc:JSDrumpad
 
-slider1:mix=0<-1,1,.01>Mix (Osc - Noise)
-slider2:osc_freq=440<20,10000,1:log>Frequency (Hz)
-slider3:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
-slider4:vol=-12<-62,0,.01>Volume
-slider5:pan=0<-1,1,.01>Pan
-slider6:distortion=0<0,1,.01>Distortion
+import envlib.tilr.jsfx-inc
 
-slider7:noise_stereo=0<0,1,1{No, Yes}>Stereo noise
+slider1:mix=-1<-1,1,.01>Mix (Osc - Noise)
+slider2:vol=-12<-62,0,.01>Volume
+slider3:pan=0<-1,1,.01>Pan
+slider4:distortion=0<0,1,.01>Distortion
+
+slider8:osc_freq=440<20,10000,1:log>Frequency (Hz)
+slider9:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
+slider10:osc_att=0<0,5000,1:log>Attack
+slider11:osc_dec=1000<0,5000,1:log>Decay
+slider12:osc_shape=0<-0.99,0.99,0.01>Shape
+
+slider15:noise_stereo=0<0,1,1{No, Yes}>Stereo noise
 
 @init
 
@@ -44,14 +50,36 @@ function make_wave(cycle) (
       : square_wave(cycle)
 );
 
-function db2gain(db) ( 
+function db2gain(db) (
   10^(db / 20);
+);
+
+function envelope_refresh() (
+  envelope.zen_update(
+    0, // delay
+    osc_att,
+    1, // decay
+    0, // sustain
+    osc_dec, // release
+    osc_shape, // attack shape
+    1, // decay shape
+    osc_shape, // release shape
+    100, // mix
+    0, // min
+    100 // max
+  );
+  1;
 );
 
 @slider
 
 gain = db2gain(vol);
-drive = 2*min(distortion, 0.999)/(1-min(distortion, 0.999))
+drive = 2*min(distortion, 0.999)/(1-min(distortion, 0.999));
+
+envelope_refresh();
+envelope.zen_trigger(1);
+envelope.zen_process();
+envelope.zen_release();
 
 @sample
 
@@ -85,6 +113,10 @@ distortion > 0 ? (
   spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
   spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
 );
+
+env = envelope.zen_process();  // main processing function
+spl0 *= env;
+spl1 *= env;
 
 spl0 *= gain;
 spl1 *= gain;
