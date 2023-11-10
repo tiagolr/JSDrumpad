@@ -10,16 +10,20 @@ slider4:distortion=0<0, 1, .01>Distortion
 
 slider6:osc_freq=440<20, 10000, 1:log>Frequency (Hz)
 slider7:osc_wave=1<0, 3, 1{Sine, Triangle, Saw, Square}>Wave
-slider8:osc_att=1000<0, 5000, 1:log>Attack
-slider9:osc_dec=1000<0, 10000, 1:log>Decay
+slider8:osc_att=1000<1, 5000, 1:log>Attack
+slider9:osc_dec=1000<1, 5000, 1:log>Decay
 slider10:osc_shape=1<0, 2, .01>Shape
 
 slider12:pitch_amt=0<-1, 1, 0.01>Pitch ammount
-slider13:pitch_att=0<0, 5000, 1:log>Pitch attack
-slider14:pitch_dec=1000<0, 10000, 1:log>Pitch decay
+slider13:pitch_att=0<1, 5000, 1:log>Pitch attack
+slider14:pitch_dec=1000<1, 5000, 1:log>Pitch decay
 slider15:pitch_shape=1<0, 2, 0.01>Pitch shape
+slider16:pitch_track=0<0,1,1{No, Yes}>Keyboard tracking
 
-slider17:noise_stereo=0<0, 1, 1{No, Yes}>Stereo noise
+slider18:noise_stereo=0<0, 1, 1{No, Yes}>Stereo noise
+slider19:noise_att=0<1,5000, 1:log>Noise attack
+slider20:noise_dec=1000<1,5000, 1:log>Noise decay
+slider21:noise_shape=1<0, 2, 0.01>Noise shape
 
 @init
 
@@ -28,7 +32,7 @@ note_on = 0;
 note_counter = 0;
 
 function wrap(number) (
-  number <= 1 ? number : 0;
+  number <= 1 ? number : number - 1;
 );
 
 function sine_wave(cycle) (
@@ -62,6 +66,10 @@ function db2gain(db) (
   10^(db / 20);
 );
 
+function note2freq(n) (
+  440 * pow(2, (n - 69) / 12);
+);
+
 function envelope_refresh() (
   att_shape = osc_shape > 1 ? 3.001 - osc_shape : osc_shape;
   dec_shape = osc_shape > 1 ? 2 - osc_shape : 1.001 + osc_shape;
@@ -92,13 +100,14 @@ drive = 2*min(distortion, 0.999)/(1-min(distortion, 0.999));
 envelope_refresh();
 
 @block
-while (midirecv(offset, msg1, msg2, vel)) (
+while (midirecv(offset, msg1, note, vel)) (
   event = msg1 & 0xF0;  // apply mask to determine event
   channel = msg1 & 0x0F;  // apply mask to determine channel
 
   event == 0x90 && vel > 0 ? (
     note_on = 1;
     note_counter = 0;
+    note_freq = note2freq(note);
     envelope.zen_trigger(1);
     pitch_envelope.zen_trigger(1);
   );
@@ -113,11 +122,10 @@ note_on ? (
     envelope.zen_release();
     pitch_envelope.zen_release();
   );
-
-  ENV -= 0.000001;
-
   pitch_envelope.zen_process();
-  osc_cycle = wrap(osc_cycle + osc_freq / srate * pow(16, pitch_amt * pitch_envelope.env));
+
+  freq = pitch_track ? note_freq : osc_freq;
+  osc_cycle = wrap(osc_cycle + freq / srate * pow(16, pitch_amt * pitch_envelope.env));
   wave_l = make_wave(osc_cycle);
   wave_r = wave_l;
   noise_l = make_noise();
