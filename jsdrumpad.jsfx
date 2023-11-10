@@ -3,7 +3,7 @@ tags: drum synth, instrument
 
 import envlib.tilr.jsfx-inc
 
-slider1:mix=-1<-1, 1, .01>Mix (Osc - Noise)
+slider1:mix=1<-1, 1, .01>Mix (Osc - Noise)
 slider2:vol=-12<-62, 0, .01>Volume
 slider3:pan=0<-1, 1, .01>Pan
 slider4:distortion=0<0, 1, .01>Distortion
@@ -90,6 +90,10 @@ function envelope_refresh() (
   att_shape = pitch_shape > 1 ? 3.001 - pitch_shape : pitch_shape;
   dec_shape = pitch_shape > 1 ? 2 - pitch_shape : 1.001 + pitch_shape;
   pitch_envelope.zen_update(0, pitch_att, pitch_dec, -90, 0, att_shape, dec_shape, 1, 100, 0, 100);
+  
+  att_shape = noise_shape > 1 ? 3.001 - noise_shape : noise_shape;
+  dec_shape = noise_shape > 1 ? 2 - noise_shape: 1.001 + noise_shape;
+  noise_envelope.zen_update(0, noise_att, noise_dec, -90, 0, att_shape, dec_shape, 1, 100, 0, 100);
 );
 
 @slider
@@ -110,6 +114,7 @@ while (midirecv(offset, msg1, note, vel)) (
     note_freq = note2freq(note);
     envelope.zen_trigger(1);
     pitch_envelope.zen_trigger(1);
+    noise_envelope.zen_trigger(1);
   );
 );
 
@@ -121,15 +126,19 @@ note_on ? (
     note_on = 0;
     envelope.zen_release();
     pitch_envelope.zen_release();
+    noise_envelope.zen_release();
   );
+  
+  envelope.zen_process();
   pitch_envelope.zen_process();
+  noise_envelope.zen_process();
 
   freq = pitch_track ? note_freq : osc_freq;
   osc_cycle = wrap(osc_cycle + freq / srate * pow(16, pitch_amt * pitch_envelope.env));
-  wave_l = make_wave(osc_cycle);
+  wave_l = make_wave(osc_cycle) * envelope.env;
   wave_r = wave_l;
-  noise_l = make_noise();
-  noise_r = noise_stereo ? make_noise() : noise_l;
+  noise_l = make_noise() * noise_envelope.env;
+  noise_r = noise_stereo ? make_noise() * noise_envelope.env : noise_l;
 
   mix < 0 ? (
     noise_l *= 1 + mix;
@@ -155,10 +164,6 @@ note_on ? (
     spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
     spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
   );
-
-  envelope.zen_process();  // main processing function
-  spl0 *= envelope.env;
-  spl1 *= envelope.env;
 
   spl0 *= gain;
   spl1 *= gain;
