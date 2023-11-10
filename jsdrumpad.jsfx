@@ -3,18 +3,23 @@ tags: drum synth, instrument
 
 import envlib.tilr.jsfx-inc
 
-slider1:mix=-1<-1,1,.01>Mix (Osc - Noise)
-slider2:vol=-12<-62,0,.01>Volume
-slider3:pan=0<-1,1,.01>Pan
-slider4:distortion=0<0,1,.01>Distortion
+slider1:mix=-1<-1, 1, .01>Mix (Osc - Noise)
+slider2:vol=-12<-62, 0, .01>Volume
+slider3:pan=0<-1, 1, .01>Pan
+slider4:distortion=0<0, 1, .01>Distortion
 
-slider8:osc_freq=440<20,10000,1:log>Frequency (Hz)
-slider9:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
-slider10:osc_att=1000<0,5000,1:log>Attack
-slider11:osc_dec=1000<0,10000,1:log>Decay
-slider12:osc_shape=1<0,2,.01>Shape
+slider6:osc_freq=440<20, 10000, 1:log>Frequency (Hz)
+slider7:osc_wave=1<0, 3, 1{Sine, Triangle, Saw, Square}>Wave
+slider8:osc_att=1000<0, 5000, 1:log>Attack
+slider9:osc_dec=1000<0, 10000, 1:log>Decay
+slider10:osc_shape=1<0, 2, .01>Shape
 
-slider15:noise_stereo=0<0,1,1{No, Yes}>Stereo noise
+slider12:pitch_amt=0<-1, 1, 0.01>Pitch ammount
+slider13:pitch_att=0<0, 5000, 1:log>Pitch attack
+slider14:pitch_dec=1000<0, 10000, 1:log>Pitch decay
+slider15:pitch_shape=1<0, 2, 0.01>Pitch shape
+
+slider17:noise_stereo=0<0, 1, 1{No, Yes}>Stereo noise
 
 @init
 
@@ -58,19 +63,25 @@ function db2gain(db) (
 );
 
 function envelope_refresh() (
+  att_shape = osc_shape > 1 ? 3.001 - osc_shape : osc_shape;
+  dec_shape = osc_shape > 1 ? 2 - osc_shape : 1.001 + osc_shape;
   envelope.zen_update(
     0, // delay
     osc_att, // attack
     osc_dec, // decay
     -90, // sustain
     0, // release
-    osc_shape > 1 ? 3.001 - osc_shape : osc_shape, // attack shape
-    osc_shape > 1 ? 2 - osc_shape : 1.001 + osc_shape, // decay shape
+    att_shape, // attack shape
+    dec_shape, // decay shape
     1, // release shape
     100, // mix
     0, // min
     100 // max
   );
+
+  att_shape = pitch_shape > 1 ? 3.001 - pitch_shape : pitch_shape;
+  dec_shape = pitch_shape > 1 ? 2 - pitch_shape : 1.001 + pitch_shape;
+  pitch_envelope.zen_update(0, pitch_att, pitch_dec, -90, 0, att_shape, dec_shape, 1, 100, 0, 100);
 );
 
 @slider
@@ -89,6 +100,7 @@ while (midirecv(offset, msg1, msg2, vel)) (
     note_on = 1;
     note_counter = 0;
     envelope.zen_trigger(1);
+    pitch_envelope.zen_trigger(1);
   );
 );
 
@@ -99,43 +111,47 @@ note_on ? (
   note_counter > osc_att + osc_dec ? (
     note_on = 0;
     envelope.zen_release();
+    pitch_envelope.zen_release();
   );
-);
 
-osc_cycle = wrap(osc_cycle + osc_freq / srate);
-wave_l = make_wave(osc_cycle);
-wave_r = wave_l;
-noise_l = make_noise();
-noise_r = noise_stereo ? make_noise() : noise_l;
+  ENV -= 0.000001;
 
-mix < 0 ? (
-  noise_l *= 1 + mix;
-  noise_r *= 1 + mix;
-);
-mix > 0 ? (
-  wave_l *= 1 - mix;
-  wave_r *= 1 - mix;
-);
-pan < 0 ? (
-  noise_r *= 1 + pan;
-  wave_r *= 1 + pan;
-);
-pan > 0 ? (
-  noise_l *= 1 - pan;
-  wave_l *= 1 - pan;
-);
+  pitch_envelope.zen_process();
+  osc_cycle = wrap(osc_cycle + osc_freq / srate * pow(16, pitch_amt * pitch_envelope.env));
+  wave_l = make_wave(osc_cycle);
+  wave_r = wave_l;
+  noise_l = make_noise();
+  noise_r = noise_stereo ? make_noise() : noise_l;
 
-spl0 = (noise_l + wave_l);
-spl1 = (noise_r + wave_r);
+  mix < 0 ? (
+    noise_l *= 1 + mix;
+    noise_r *= 1 + mix;
+  );
+  mix > 0 ? (
+    wave_l *= 1 - mix;
+    wave_r *= 1 - mix;
+  );
+  pan < 0 ? (
+    noise_r *= 1 + pan;
+    wave_r *= 1 + pan;
+  );
+  pan > 0 ? (
+    noise_l *= 1 - pan;
+    wave_l *= 1 - pan;
+  );
 
-distortion > 0 ? (
-  spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
-  spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
+  spl0 = (noise_l + wave_l);
+  spl1 = (noise_r + wave_r);
+
+  distortion > 0 ? (
+    spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
+    spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
+  );
+
+  envelope.zen_process();  // main processing function
+  spl0 *= envelope.env;
+  spl1 *= envelope.env;
+
+  spl0 *= gain;
+  spl1 *= gain;
 );
-
-envelope.zen_process();  // main processing function
-spl0 *= envelope.env;
-spl1 *= envelope.env;
-
-spl0 *= gain;
-spl1 *= gain;
