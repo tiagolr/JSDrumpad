@@ -5,7 +5,7 @@ import envlib.jsfx-inc
 import rbj_filter.jsfx-inc
 
 slider1:mix=1<-1, 1, .01>Mix (Osc - Noise)
-slider2:vol=-12<-62, 0, .01>Volume
+slider2:vol=-12<-60, 0, .01>Volume
 slider3:pan=0<-1, 1, .01>Pan
 slider4:distortion=0<0, 1, .01>Distortion
 slider5:osc_freq=440<20, 10000, 1:log>Frequency (Hz)
@@ -29,18 +29,19 @@ slider19:noise_cutoff=22000<20,22000,1>Noise color
 
 slider20:filter_shape=0<0,3,1{Low Pass, Band Pass, High Pass}>Filter shape
 slider21:filter_freq=22000<20, 22000, 1:log>Filter frequency
-slider22:filter_q=0.5<0.01,4.0,0.01>Filter Q
+slider22:filter_q=0.5<0.01, 32, 0.01>Filter Q
 
 slider23:eq_freq=440<20, 22000, 1:log>EQ frequency
 slider24:eq_gain=1<0.01, 8, 0.01>EQ gain
-slider25:eq_q=0.5<0.01,4.0,0.01>EQ Q
+slider25:eq_q=0.5<0.01, 32, 0.01>EQ Q
 
-// vel vol
+slider26:vel_vol=1<0, 1, 0.01>Velocity volume
 
 @init
 
 osc_cycle = 0;
 note_on = 0;
+note_vel = 0;
 note_counter = 0;
 
 function wrap(number) (
@@ -134,6 +135,7 @@ while (midirecv(offset, msg1, note, vel)) (
 
   event == 0x90 && vel > 0 ? (
     note_on = 1;
+    note_vel = vel / 127;
     note_counter = 0;
     note_freq = note2freq(note);
     envelope.zen_trigger(1);
@@ -146,7 +148,7 @@ while (midirecv(offset, msg1, note, vel)) (
 
 note_on ? (
   note_counter += 1 / srate * 1000;
-  note_counter > osc_att + osc_dec ? (
+  note_counter > osc_att + osc_dec && note_counter > noise_att + noise_dec ? (
     note_on = 0;
     envelope.zen_release();
     pitch_envelope.zen_release();
@@ -201,6 +203,54 @@ note_on ? (
     spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
   );
 
-  spl0 *= gain;
-  spl1 *= gain;
+  vel_mult = min(note_vel + (1 - vel_vol), 1);
+  spl0 *= gain * vel_mult;
+  spl1 *= gain * vel_mult;
 );
+
+@gfx 600 300
+
+function deg2rad (deg) (
+  deg * $pi / 180;
+);
+
+function set_color(color) (
+  gfx_r = (color & 0xFF0000) / 0xFF0000;
+  gfx_g = (color & 0x00FF00) / 0x00FF00;
+  gfx_b = (color & 0x0000FF) / 0x0000FF;
+);
+
+function draw_knob(x, y, nslider, label, _min, _max) (
+  set_color(0x282D32);
+  rad130 = deg2rad(130);
+  radm130 = deg2rad(-130);
+  gfx_arc(x+20, y+20, 20, deg2rad(-130), deg2rad(130), 1);
+  gfx_arc(x+20, y+20, 19.5, deg2rad(-130), deg2rad(130), 1);
+  gfx_arc(x+20, y+20, 19, deg2rad(-130), deg2rad(130), 1);
+  gfx_arc(x+20, y+20, 18.5, deg2rad(-130), deg2rad(130), 1);
+
+  // linear map value from min/max to -130deg +130deg
+  slider_val = slider(nslider);
+  scale = (130 - -130) / (_max-_min);
+  _offset = (-_min * (130 - -130)) / (_max - _min) + -130;
+  slider_deg = slider_val * scale + _offset;
+
+  gfx_circle(x+20, y+20, 15, 1, 1);
+  set_color(0x5DBEE4);
+  gfx_circle(x+20-sin(deg2rad(-slider_deg))*10, y+20-cos(deg2rad(-slider_deg))*10, 3, 1);
+
+  gfx_arc(x+20, y+20, 20, deg2rad(-130), deg2rad(slider_deg), 1);
+  gfx_arc(x+20, y+20, 19.5, deg2rad(-130), deg2rad(slider_deg), 1);
+  gfx_arc(x+20, y+20, 19, deg2rad(-130), deg2rad(slider_deg), 1);
+  gfx_arc(x+20, y+20, 18.5, deg2rad(-130), deg2rad(slider_deg), 1);
+
+  set_color(0xFFFFFF);
+  gfx_x = x - 40;
+  gfx_y = y + 20 * 2 + 5;
+  gfx_drawstr(label, 1, x+40+20*2, y+100);
+);
+
+gfx_clear = 0x141618;
+draw_knob(100, 100, 2, "Vol", -60, 0);
+//draw_knob(180, 100, 4, "Drive", 0, 1);
+draw_knob(180, 100, 5, "Freq", 20, 10000);
