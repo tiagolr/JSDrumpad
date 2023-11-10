@@ -30,13 +30,10 @@ slider19:noise_cutoff=22000<20,22000,1>Noise color
 slider20:filter_shape=0<0,3,1{Low Pass, Band Pass, High Pass}>Filter shape
 slider21:filter_freq=22000<20, 22000, 1:log>Filter frequency
 slider22:filter_q=0.5<0.01,4.0,0.01>Filter Q
-// filter shape
-// filter freq
-// filter q
 
-// eq freq
-// eq gain
-// eq q
+slider23:eq_freq=440<20, 22000, 1:log>EQ frequency
+slider24:eq_gain=1<0.01, 8, 0.01>EQ gain
+slider25:eq_q=0.5<0.01,4.0,0.01>EQ Q
 
 // vel vol
 
@@ -125,6 +122,7 @@ filter_shape == 1 ? (
 filter_shape == 2 ? (
   noise_filter.rbj_hp(filter_freq, filter_q);
 );
+eq.rbj_eq(eq_freq, eq_q, eq_gain);
 
 envelope_refresh();
 
@@ -195,8 +193,8 @@ note_on ? (
     wave_l *= 1 - pan;
   );
 
-  spl0 = (noise_l + wave_l);
-  spl1 = (noise_r + wave_r);
+  spl0 = eq.rbj_df1_0(noise_l + wave_l);
+  spl1 = eq.rbj_df1_1(noise_r + wave_r);
 
   distortion > 0 ? (
     spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
