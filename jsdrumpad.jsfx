@@ -1,4 +1,5 @@
 desc:JSDrumpad
+tags: drum synth, instrument
 
 import envlib.tilr.jsfx-inc
 
@@ -9,15 +10,17 @@ slider4:distortion=0<0,1,.01>Distortion
 
 slider8:osc_freq=440<20,10000,1:log>Frequency (Hz)
 slider9:osc_wave=1<0,3,1{Sine, Triangle, Saw, Square}>Wave
-slider10:osc_att=0<0,5000,1:log>Attack
-slider11:osc_dec=1000<0,5000,1:log>Decay
-slider12:osc_shape=0<-0.99,0.99,0.01>Shape
+slider10:osc_att=1000<0,5000,1:log>Attack
+slider11:osc_dec=1000<0,10000,1:log>Decay
+slider12:osc_shape=1<0,2,.01>Shape
 
 slider15:noise_stereo=0<0,1,1{No, Yes}>Stereo noise
 
 @init
 
 osc_cycle = 0;
+note_on = 0;
+note_counter = 0;
 
 function wrap(number) (
   number <= 1 ? number : 0;
@@ -57,18 +60,17 @@ function db2gain(db) (
 function envelope_refresh() (
   envelope.zen_update(
     0, // delay
-    osc_att,
-    1, // decay
-    0, // sustain
-    osc_dec, // release
-    osc_shape, // attack shape
-    1, // decay shape
-    osc_shape, // release shape
+    osc_att, // attack
+    osc_dec, // decay
+    -90, // sustain
+    0, // release
+    osc_shape > 1 ? 3.001 - osc_shape : osc_shape, // attack shape
+    osc_shape > 1 ? 2 - osc_shape : 1.001 + osc_shape, // decay shape
+    1, // release shape
     100, // mix
     0, // min
     100 // max
   );
-  1;
 );
 
 @slider
@@ -77,11 +79,28 @@ gain = db2gain(vol);
 drive = 2*min(distortion, 0.999)/(1-min(distortion, 0.999));
 
 envelope_refresh();
-envelope.zen_trigger(1);
-envelope.zen_process();
-envelope.zen_release();
+
+@block
+while (midirecv(offset, msg1, msg2, vel)) (
+  event = msg1 & 0xF0;  // apply mask to determine event
+  channel = msg1 & 0x0F;  // apply mask to determine channel
+
+  event == 0x90 && vel > 0 ? (
+    note_on = 1;
+    note_counter = 0;
+    envelope.zen_trigger(1);
+  );
+);
 
 @sample
+
+note_on ? (
+  note_counter += 1 / srate * 1000;
+  note_counter > osc_att + osc_dec ? (
+    note_on = 0;
+    envelope.zen_release();
+  );
+);
 
 osc_cycle = wrap(osc_cycle + osc_freq / srate);
 wave_l = make_wave(osc_cycle);
@@ -114,9 +133,9 @@ distortion > 0 ? (
   spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
 );
 
-env = envelope.zen_process();  // main processing function
-spl0 *= env;
-spl1 *= env;
+envelope.zen_process();  // main processing function
+spl0 *= envelope.env;
+spl1 *= envelope.env;
 
 spl0 *= gain;
 spl1 *= gain;
