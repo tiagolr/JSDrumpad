@@ -4,6 +4,7 @@ tags: drum synth, instrument
 import dp.envlib.jsfx-inc
 import dp.mouselib.jsfx-inc
 import dp.rbj_filter.jsfx-inc
+import dp.gfxlib.jsfx-inc
 
 slider1:mix=1<-1, 1, .01>Mix (Osc - Noise)
 slider2:vol=-12<-90, 0, .01>Volume
@@ -26,15 +27,15 @@ slider15:noise_stereo=0<0, 1, 1{No, Yes}>Stereo noise
 slider16:noise_att=0<1,5000, 1:log>Noise attack
 slider17:noise_dec=1000<1,5000, 1:log>Noise decay
 slider18:noise_shape=1<0, 2, 0.01>Noise shape
-slider19:noise_cutoff=22000<20,22000,1>Noise color
+slider19:noise_cutoff=22000<20,22050,1>Noise color
 
 slider20:filter_shape=0<0,3,1{Low Pass, Band Pass, High Pass}>Filter shape
-slider21:filter_freq=22000<20, 22000, 1:log>Filter frequency
-slider22:filter_q=0.5<0.01, 32, 0.01>Filter Q
+slider21:filter_freq=22000<20, 22050, 1:log>Filter frequency
+slider22:filter_q=0.5<0.01, 40, 0.01>Filter Q
 
 slider23:eq_freq=440<20, 22000, 1:log>EQ frequency
 slider24:eq_gain=1<0.01, 8, 0.01>EQ gain
-slider25:eq_q=0.5<0.01, 32, 0.01>EQ Q
+slider25:eq_q=0.5<0.01, 40, 0.01>EQ Q
 
 slider26:vel_vol=1<0, 1, 0.01>Velocity volume
 
@@ -47,43 +48,20 @@ note_on = 0;
 note_vel = 0;
 note_counter = 0;
 
-function wrap(number) (
-  number <= 1 ? number : number - 1;
-);
-
-function sine_wave(cycle) (
-  sin(cycle * 2 * $pi);
-);
-
-function tri_wave(cycle) (
-  (cycle > 0.5 ? 4 * cycle - 2 : -4 * cycle + 2) - 1;
-);
-
-function saw_wave(cycle) (
-  cycle * -2 + 1;
-);
-
-function square_wave(cycle) (
-  cycle < 0.5 ? -1 : 1;
-);
-
-function make_noise(cycle) (
-  rand(2) - 1;
-);
+function wrap(number) (number <= 1 ? number : number - 1;);
+function sine_wave(cycle) (sin(cycle * 2 * $pi););
+function tri_wave(cycle) ((cycle > 0.5 ? 4 * cycle - 2 : -4 * cycle + 2) - 1;);
+function saw_wave(cycle) (cycle * -2 + 1;);
+function square_wave(cycle) (cycle < 0.5 ? -1 : 1;);
+function make_noise(cycle) (rand(2) - 1;);
+function db2gain(db) (10^(db / 20););
+function note2freq(n) (440 * pow(2, (n - 69) / 12););
 
 function make_wave(cycle) (
   osc_wave == 0 ? sine_wave(cycle)
     : osc_wave == 1 ? tri_wave(cycle)
     : osc_wave == 2 ? saw_wave(cycle)
       : square_wave(cycle)
-);
-
-function db2gain(db) (
-  10^(db / 20);
-);
-
-function note2freq(n) (
-  440 * pow(2, (n - 69) / 12);
 );
 
 function envelope_refresh() (
@@ -145,6 +123,8 @@ while (midirecv(offset, msg1, note, vel)) (
     pitch_envelope.zen_trigger(1);
     noise_envelope.zen_trigger(1);
   );
+
+  midisend(offset, msg1, note, vel);
 );
 
 @sample
@@ -213,98 +193,25 @@ note_on ? (
 
 @gfx 600 300
 
-function deg2rad (deg) (
-  deg * $pi / 180;
-);
-
-function set_color(color) (
-  gfx_r = (color & 0xFF0000) / 0xFF0000;
-  gfx_g = (color & 0x00FF00) / 0x00FF00;
-  gfx_b = (color & 0x0000FF) / 0x0000FF;
-);
-
-function logScale (value, max, min) (
-    minP = min;
-    maxP = max;
-
-    minV = log(min);
-    maxV = log(max);
-
-    scale = (maxV - minV) / (maxP - minP);
-    exp(minV + scale * (value - minP));
-);
-
-function inverseLogScale (lg, max, min) (
-    minP = min;
-    maxP = max;
-
-    minV = log(min);
-    maxV = log(max);
-
-    scale = (maxV - minV) / (maxP - minP);
-    (log(lg) - minV) / scale + minP;
-);
-
-function mouse_in_rect (x, y, w ,h) (
-  mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
-);
-
-function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym) (
-  set_color(0x282D32);
-  rad130 = deg2rad(130);
-  gfx_arc(x+20, y+20, 20, -rad130, rad130, 1);
-  gfx_arc(x+20, y+20, 19.5, -rad130, rad130, 1);
-  gfx_arc(x+20, y+20, 19, -rad130, rad130, 1);
-  gfx_arc(x+20, y+20, 18.5, -rad130, rad130, 1);
-
-  slider_val = slider(nslider);
-  is_log ? (
-    slider_val = inverseLogScale(slider_val, 10000, 20);
-  );
-
-  // linear map value from min/max to -130deg +130deg
-  scale = (130 - -130) / (_max-_min);
-  _offset = (-_min * (130 - -130)) / (_max - _min) + -130;
-  slider_deg = slider_val * scale + _offset;
-  slider_rad = deg2rad(slider_deg);
-
-  gfx_circle(x+20, y+20, 15, 1, 1);
-  set_color(0x5DBEE4);
-  gfx_circle(x+20-sin(-slider_rad)*10, y+20-cos(-slider_rad)*10, 3, 1);
-
-  gfx_arc(x+20, y+20, 20, is_sym ? 0 : -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 19.5, is_sym ? 0 : -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 19, is_sym ? 0 : -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 18.5, is_sym ? 0 : -rad130, slider_rad, 1);
-
-  set_color(0xFFFFFF);
-  gfx_x = x - 40;
-  gfx_y = y + 20 * 2 + 5;
-  gfx_drawstr(label, 1, x+40+20*2, y+100);
-
-  // mouse operations
-  mouse_in_rect(x, y, 40, 40) ? (
-    mouse.double_click ? slider(nslider) = default;
-    mouse.left_click ? (
-      selknob_nslider = nslider;
-      selknob_min = _min;
-      selknob_max = _max;
-      selknob_is_log = is_log;
-    );
-  );
-);
-
 mouse.update_mouse_state();
 gfx_clear = 0x141618;
-draw_knob(100, 100, 2, "Vol", -12, -90, 0, 0, 0);
-draw_knob(180, 100, 3, "Pan", 0, -1, 1, 0, 1);
-draw_knob(260, 100, 5, "Freq", 440, 20, 10000, 1, 0);
+draw_knob(100, 100, 2, "Vol", -12, -90, 0, 0, 0, sprintf(#, "%.1f Db", slider(2)));
+draw_knob(180, 100, 3, "Pan", 0, -1, 1, 0, 1, sprintf(#, "%.2f", slider(3)));
+draw_knob(260, 100, 5, "Freq", 440, 20, 10000, 1, 0, sprintf(#, "%i Hz", slider(5)));
+draw_knob(340, 100, 8, "Decay", 1000, 1, 5000, 1, 0, sprintf(#, "%i ms", slider(8)));
 
 mouse.left && mouse.dy != 0 && selknob_nslider ? (
-  inc = (selknob_max - selknob_min) / 100 * -mouse.dy;
-  slider(selknob_nslider) += inc;
+  selknob_is_log ? (
+    slider(selknob_nslider) = slider(selknob_nslider) * pow(100, -mouse.dy * 0.01 * (mouse.control ? 0.05 : 1));
+  ) : (
+    inc = (selknob_max - selknob_min) / 100 * -mouse.dy;
+    mouse.control ? inc *= 0.05;
+    slider(selknob_nslider) += inc;
+  );
+
   slider(selknob_nslider) > selknob_max ? slider(selknob_nslider) = selknob_max;
   slider(selknob_nslider) < selknob_min ? slider(selknob_nslider) = selknob_min;
 );
 
+gfx_setcursor(selknob_nslider ? 32511 : 0);
 !mouse.left ? selknob_nslider = 0;
