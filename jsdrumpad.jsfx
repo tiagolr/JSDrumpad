@@ -220,29 +220,55 @@ function set_color(color) (
   gfx_b = (color & 0x0000FF) / 0x0000FF;
 );
 
-function draw_knob(x, y, nslider, label, _min, _max) (
+function logScale (value, max, min) (
+    minP = min;
+    maxP = max;
+
+    minV = log(min);
+    maxV = log(max);
+
+    scale = (maxV - minV) / (maxP - minP);
+    exp(minV + scale * (value - minP));
+);
+
+function inverseLogScale (lg, max, min) (
+    minP = min;
+    maxP = max;
+
+    minV = log(min);
+    maxV = log(max);
+
+    scale = (maxV - minV) / (maxP - minP);
+    (log(lg) - minV) / scale + minP;
+);
+
+function draw_knob(x, y, nslider, label, _min, _max, is_log_scale) (
   set_color(0x282D32);
   rad130 = deg2rad(130);
-  radm130 = deg2rad(-130);
-  gfx_arc(x+20, y+20, 20, deg2rad(-130), deg2rad(130), 1);
-  gfx_arc(x+20, y+20, 19.5, deg2rad(-130), deg2rad(130), 1);
-  gfx_arc(x+20, y+20, 19, deg2rad(-130), deg2rad(130), 1);
-  gfx_arc(x+20, y+20, 18.5, deg2rad(-130), deg2rad(130), 1);
+  gfx_arc(x+20, y+20, 20, -rad130, rad130, 1);
+  gfx_arc(x+20, y+20, 19.5, -rad130, rad130, 1);
+  gfx_arc(x+20, y+20, 19, -rad130, rad130, 1);
+  gfx_arc(x+20, y+20, 18.5, -rad130, rad130, 1);
+
+  slider_val = slider(nslider);
+  is_log_scale ? (
+    slider_val = inverseLogScale(slider_val, 10000, 20);
+  );
 
   // linear map value from min/max to -130deg +130deg
-  slider_val = slider(nslider);
   scale = (130 - -130) / (_max-_min);
   _offset = (-_min * (130 - -130)) / (_max - _min) + -130;
   slider_deg = slider_val * scale + _offset;
+  slider_rad = deg2rad(slider_deg);
 
   gfx_circle(x+20, y+20, 15, 1, 1);
   set_color(0x5DBEE4);
-  gfx_circle(x+20-sin(deg2rad(-slider_deg))*10, y+20-cos(deg2rad(-slider_deg))*10, 3, 1);
+  gfx_circle(x+20-sin(-slider_rad)*10, y+20-cos(-slider_rad)*10, 3, 1);
 
-  gfx_arc(x+20, y+20, 20, deg2rad(-130), deg2rad(slider_deg), 1);
-  gfx_arc(x+20, y+20, 19.5, deg2rad(-130), deg2rad(slider_deg), 1);
-  gfx_arc(x+20, y+20, 19, deg2rad(-130), deg2rad(slider_deg), 1);
-  gfx_arc(x+20, y+20, 18.5, deg2rad(-130), deg2rad(slider_deg), 1);
+  gfx_arc(x+20, y+20, 20, -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 19.5, -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 19, -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 18.5, -rad130, slider_rad, 1);
 
   set_color(0xFFFFFF);
   gfx_x = x - 40;
@@ -251,6 +277,5 @@ function draw_knob(x, y, nslider, label, _min, _max) (
 );
 
 gfx_clear = 0x141618;
-draw_knob(100, 100, 2, "Vol", -60, 0);
-//draw_knob(180, 100, 4, "Drive", 0, 1);
-draw_knob(180, 100, 5, "Freq", 20, 10000);
+draw_knob(100, 100, 2, "Vol", -60, 0, 0);
+draw_knob(180, 100, 5, "Freq", 20, 10000, 1);
