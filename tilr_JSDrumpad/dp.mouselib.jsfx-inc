@@ -1,0 +1,30 @@
+desc:mouselib.jsfx-inc
+
+@init
+
+function update_mouse_state()
+instance(cap, x, y, lx, ly, dx, dy, right_click, left_click, lleft, lright, left, right, click_time, double_click)
+global(mouse_cap, mouse_x, mouse_y)
+(
+  lleft = left;
+  lright = right;
+  lx = x;
+  ly = y;
+  cap = mouse_cap;
+  x = mouse_x;
+  y = mouse_y;
+
+  left = cap & 1 > 0;
+  right = cap & 2 > 0;
+  left_click = left && lleft == 0;
+  right_click = right && lright == 0;
+  dx = x - lx;
+  dy = y - ly;
+
+  left_click ? (
+    time_precise() - click_time < .5 ? double_click = 1;
+    click_time = time_precise();
+  ) : (
+    double_click = 0;
+  );
+);

@@ -1,15 +1,16 @@
 desc:JSDrumpad
 tags: drum synth, instrument
 
-import envlib.jsfx-inc
-import rbj_filter.jsfx-inc
+import dp.envlib.jsfx-inc
+import dp.mouselib.jsfx-inc
+import dp.rbj_filter.jsfx-inc
 
 slider1:mix=1<-1, 1, .01>Mix (Osc - Noise)
-slider2:vol=-12<-60, 0, .01>Volume
+slider2:vol=-12<-90, 0, .01>Volume
 slider3:pan=0<-1, 1, .01>Pan
 slider4:distortion=0<0, 1, .01>Distortion
-slider5:osc_freq=440<20, 10000, 1:log>Frequency (Hz)
 
+slider5:osc_freq=440<20, 10000, 1:log>Frequency (Hz)
 slider6:osc_wave=1<0, 3, 1{Sine, Triangle, Saw, Square}>Wave
 slider7:osc_att=1000<1, 5000, 1:log>Attack
 slider8:osc_dec=1000<1, 5000, 1:log>Decay
@@ -36,6 +37,8 @@ slider24:eq_gain=1<0.01, 8, 0.01>EQ gain
 slider25:eq_q=0.5<0.01, 32, 0.01>EQ Q
 
 slider26:vel_vol=1<0, 1, 0.01>Velocity volume
+
+options:gfx_hz=60;
 
 @init
 
@@ -242,7 +245,11 @@ function inverseLogScale (lg, max, min) (
     (log(lg) - minV) / scale + minP;
 );
 
-function draw_knob(x, y, nslider, label, _min, _max, is_log_scale) (
+function mouse_in_rect (x, y, w ,h) (
+  mouse.x >= x && mouse.x <= x + w && mouse.y >= y && mouse.y <= y + h;
+);
+
+function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym) (
   set_color(0x282D32);
   rad130 = deg2rad(130);
   gfx_arc(x+20, y+20, 20, -rad130, rad130, 1);
@@ -251,7 +258,7 @@ function draw_knob(x, y, nslider, label, _min, _max, is_log_scale) (
   gfx_arc(x+20, y+20, 18.5, -rad130, rad130, 1);
 
   slider_val = slider(nslider);
-  is_log_scale ? (
+  is_log ? (
     slider_val = inverseLogScale(slider_val, 10000, 20);
   );
 
@@ -265,17 +272,39 @@ function draw_knob(x, y, nslider, label, _min, _max, is_log_scale) (
   set_color(0x5DBEE4);
   gfx_circle(x+20-sin(-slider_rad)*10, y+20-cos(-slider_rad)*10, 3, 1);
 
-  gfx_arc(x+20, y+20, 20, -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 19.5, -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 19, -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 18.5, -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 20, is_sym ? 0 : -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 19.5, is_sym ? 0 : -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 19, is_sym ? 0 : -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 18.5, is_sym ? 0 : -rad130, slider_rad, 1);
 
   set_color(0xFFFFFF);
   gfx_x = x - 40;
   gfx_y = y + 20 * 2 + 5;
   gfx_drawstr(label, 1, x+40+20*2, y+100);
+
+  // mouse operations
+  mouse_in_rect(x, y, 40, 40) ? (
+    mouse.double_click ? slider(nslider) = default;
+    mouse.left_click ? (
+      selknob_nslider = nslider;
+      selknob_min = _min;
+      selknob_max = _max;
+      selknob_is_log = is_log;
+    );
+  );
 );
 
+mouse.update_mouse_state();
 gfx_clear = 0x141618;
-draw_knob(100, 100, 2, "Vol", -60, 0, 0);
-draw_knob(180, 100, 5, "Freq", 20, 10000, 1);
+draw_knob(100, 100, 2, "Vol", -12, -90, 0, 0, 0);
+draw_knob(180, 100, 3, "Pan", 0, -1, 1, 0, 1);
+draw_knob(260, 100, 5, "Freq", 440, 20, 10000, 1, 0);
+
+mouse.left && mouse.dy != 0 && selknob_nslider ? (
+  inc = (selknob_max - selknob_min) / 100 * -mouse.dy;
+  slider(selknob_nslider) += inc;
+  slider(selknob_nslider) > selknob_max ? slider(selknob_nslider) = selknob_max;
+  slider(selknob_nslider) < selknob_min ? slider(selknob_nslider) = selknob_min;
+);
+
+!mouse.left ? selknob_nslider = 0;
