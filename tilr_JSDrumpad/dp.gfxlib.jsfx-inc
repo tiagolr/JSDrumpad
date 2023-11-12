@@ -2,6 +2,16 @@ desc:dp.gfxlib.jsfx-inc
 
 @init
 
+selknob_nslider = 0;
+selknob_min = 0;
+selknob_max = 0;
+selknob_is_log = 0;
+
+wheelknob_nslider = 0;
+wheelknob_min = 0;
+wheelknob_max = 0;
+wheelknob_is_log = 0;
+
 function deg2rad (deg) (deg * $pi / 180;);
 RAD130 = deg2rad(130);
 
@@ -80,6 +90,14 @@ function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, va
       selknob_min = _min;
       selknob_max = _max;
       selknob_is_log = is_log;
+    );
+    ARG = 0;
+    mouse.wheel ? (
+      ARG = nslider;
+      wheelknob_nslider = nslider;
+      wheelknob_min = _min;
+      wheelknob_max = _max;
+      wheelknob_is_log = is_log;
     );
   );
 );

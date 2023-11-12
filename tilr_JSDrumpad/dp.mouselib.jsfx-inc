@@ -3,8 +3,8 @@ desc:mouselib.jsfx-inc
 @init
 
 function update_mouse_state()
-instance(cap, x, y, lx, ly, dx, dy, right_click, left_click, lleft, lright, left, right, click_time, double_click, control)
-global(mouse_cap, mouse_x, mouse_y)
+instance(cap, x, y, lx, ly, dx, dy, right_click, left_click, lleft, lright, left, right, click_time, double_click, control, lwheel, wheel)
+global(mouse_cap, mouse_x, mouse_y, mouse_wheel)
 (
   lleft = left;
   lright = right;
@@ -21,6 +21,9 @@ global(mouse_cap, mouse_x, mouse_y)
   right_click = right && lright == 0;
   dx = x - lx;
   dy = y - ly;
+
+  wheel = mouse_wheel > lwheel ? 1 : mouse_wheel < lwheel ? -1 : 0;
+  lwheel = mouse_wheel;
 
   left_click ? (
     time_precise() - click_time < .5 ? double_click = 1;
