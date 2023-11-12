@@ -32,7 +32,7 @@ slider19:noise_shape=1<0, 2, 0.01>-Noise shape
 slider20:filter_shape=0<0,3,1{Low Pass, Band Pass, High Pass}>-Filter shape
 slider21:filter_freq=22050<20, 22050, 1:log>-Filter frequency
 slider22:filter_q=0.5<0.01, 100, 0.01:log>-Filter Q
-slider23:filter_sel=0<1, 0, 1{Noise,Osc,Both}>Filter target
+slider23:filter_sel=0<1, 0, 1{Noise,Osc,Both}>-Filter target
 
 slider24:eq_freq=440<20, 22050, 1:log>-EQ frequency
 slider25:eq_gain=0<0, -18, 18>-EQ gain
@@ -174,10 +174,11 @@ note_on ? (
     filter_sel == 0 || filter_sel == 2 ? (
       noise_l = noise_filter.rbj_df1_0(noise_l);
       noise_r = noise_filter.rbj_df1_1(noise_r);
+      1;
     );
     filter_sel == 1 || filter_sel == 2 ? (
-      wave_l = noise_filter.rbj_df2(wave_l);
-      wave_r = noise_filter.rbj_df2(wave_r);
+      wave_l = noise_filter.rbj_df1_0(wave_l);
+      wave_r = noise_filter.rbj_df1_1(wave_r);
     );
   );
 
