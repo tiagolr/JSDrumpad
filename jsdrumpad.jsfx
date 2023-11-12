@@ -12,7 +12,7 @@ slider3:pan=0<-1, 1, .01>-Pan
 slider4:distortion=0<0, 1, .01>-Distortion
 
 slider5:osc_freq=440<20, 10000, 1:log>-Frequency (Hz)
-slider6:osc_wave=0<0, 3, 1{Sine, Triangle, Saw, Square}>-Wave
+slider6:osc_wave=0<0, 3, 1{Sine,Triangle,Saw,Square}>-Wave
 slider7:osc_att=1<1, 5000, 1:log>-Attack
 slider8:osc_dec=1000<1, 5000, 1:log>-Decay
 slider9:osc_shape=1<0, 2, .01>-Shape
@@ -21,9 +21,9 @@ slider10:pitch_amt=0<-1, 1, 0.01>-Pitch ammount
 slider11:pitch_att=1<1, 5000, 1:log>-Pitch attack
 slider12:pitch_dec=1000<1, 5000, 1:log>-Pitch decay
 slider13:pitch_shape=1<0, 2, 0.01>-Pitch shape
-slider14:pitch_track=0<0,1,1{No, Yes}>-Keyboard tracking
+slider14:pitch_track=0<0,1,1{No,Yes}>-Keyboard tracking
 
-slider15:noise_stereo=0<0, 1, 1{No, Yes}>-Stereo noise
+slider15:noise_stereo=0<0, 1, 1{No,Yes}>-Stereo noise
 slider16:noise_cutoff=22050<20,22050,1:log>-Noise color
 slider17:noise_att=1<1,5000, 1:log>-Noise attack
 slider18:noise_dec=1000<1,5000, 1:log>-Noise decay
@@ -32,13 +32,13 @@ slider19:noise_shape=1<0, 2, 0.01>-Noise shape
 slider20:filter_shape=0<0,3,1{Low Pass, Band Pass, High Pass}>-Filter shape
 slider21:filter_freq=22050<20, 22050, 1:log>-Filter frequency
 slider22:filter_q=0.5<0.01, 100, 0.01:log>-Filter Q
-slider23:filter_osc=0<1, 0, 1{No, Yes}>Filter Osc
+slider23:filter_sel=0<1, 0, 1{Noise,Osc,Both}>Filter target
 
 slider24:eq_freq=440<20, 22050, 1:log>-EQ frequency
 slider25:eq_gain=0<0, -18, 18>-EQ gain
 slider26:eq_q=0.5<0.01, 100, 0.01:log>-EQ Q
 
-slider26:vel_vol=1<0, 1, 0.01>-Velocity volume
+slider27:vel_vol=1<0, 1, 0.01>-Velocity volume
 
 options:gfx_hz=60;
 
@@ -48,6 +48,10 @@ osc_cycle = 0;
 note_on = 0;
 note_vel = 0;
 note_counter = 0;
+notes[0]="C";notes[1]="C#";notes[2]="D";notes[3]="D#";
+notes[4]="E";notes[5]="F";notes[6]="F#";notes[7]="G";
+notes[8]="G#";notes[9]="A";notes[10]="A#";notes[11]="B";
+NOTE = notes[1];
 
 function wrap(number) (number <= 1 ? number : number - 1;);
 function sine_wave(cycle) (sin(cycle * 2 * $pi););
@@ -56,7 +60,9 @@ function saw_wave(cycle) (cycle * -2 + 1;);
 function square_wave(cycle) (cycle < 0.5 ? -1 : 1;);
 function make_noise(cycle) (rand(2) - 1;);
 function db2gain(db) (10^(db / 20););
+function round(in) (floor(in + 0.5 * sign(in)););
 function note2freq(n) (440 * pow(2, (n - 69) / 12););
+function freq2note(f) ( round(12*(log(f/440)/log(2))+69); );
 
 function make_wave(cycle) (
   osc_wave == 0 ? sine_wave(cycle)
@@ -106,6 +112,11 @@ function on_slider() (
   );
   eq.rbj_eq(eq_freq, eq_q, db2gain(eq_gain));
   envelope_refresh();
+);
+
+function get_note_name() (
+  note = freq2note(osc_freq);
+  sprintf(#, "%s%i", notes[note % 12], floor(note / 12) - 1);
 );
 
 @slider
@@ -160,8 +171,14 @@ note_on ? (
   (filter_shape == 1) ||
   (filter_shape == 2 && filter_freq > 20) ?
   (
-    noise_l = noise_filter.rbj_df1_0(noise_l);
-    noise_r = noise_filter.rbj_df1_1(noise_r);
+    filter_sel == 0 || filter_sel == 2 ? (
+      noise_l = noise_filter.rbj_df1_0(noise_l);
+      noise_r = noise_filter.rbj_df1_1(noise_r);
+    );
+    filter_sel == 1 || filter_sel == 2 ? (
+      wave_l = noise_filter.rbj_df2(wave_l);
+      wave_r = noise_filter.rbj_df2(wave_r);
+    );
   );
 
   mix < 0 ? (
@@ -211,7 +228,7 @@ draw_knob(80, 110, 4, "Drive", 0, 0, 1, 0, 0, sprintf(#, "%.2f", slider(4)));
 set_color(0x666666);
 gfx_line(140, 40, 140, 170);
 gfx_x = 140; gfx_y = 20;
-gfx_drawstr("OSC");
+gfx_drawstr(sprintf(#, "OSC %s", get_note_name()));
 
 draw_knob(160, 40, 5, "Freq", 440, 20, 10000, 1, 0, sprintf(#, "%i Hz", slider(5)));
 draw_knob(220, 40, 7, "Att", 1, 1, 5000, 1, 0, sprintf(#, "%i ms", slider(7)));
@@ -264,7 +281,6 @@ gfx_drawstr("FILTER");
 draw_knob(580, 40, 21, "Freq", 22050, 20, 22050, 1, 0, sprintf(#, "%i Hz", slider(21)));
 draw_knob(640, 40, 22, "Q", 0.5, 0.01, 100, 1, 0, sprintf(#, "%.2f", slider(22)));
 
-
 shape_name = filter_shape == 0 ? "LP" : filter_shape == 1 ? "BP" : "HP";
 draw_button(640, 20, 40, shape_name, 0);
 mouse.left_click && mouse_in_rect(640, 20 - 2, 40, 10 + 2) ? (
@@ -274,19 +290,28 @@ mouse.left_click && mouse_in_rect(640, 20 - 2, 40, 10 + 2) ? (
   on_slider();
 );
 
+filter_name = filter_sel == 0 ? "Noise" : filter_sel == 1 ? "Osc" : "Both";
+draw_button(630, 110, 50, filter_name, 0);
+mouse.left_click && mouse_in_rect(630, 110, 50, 10+2) ? (
+  gfx_x = 630; gfx_y = 120;
+  choice = gfx_showmenu("Filter noise|Filter osc|Filter both");
+  slider(23) = max(choice - 1, 0);
+);
+
+
 set_color(0x666666);
 gfx_x = 20; gfx_y = 180;
 gfx_drawstr("VELOCITY");
 
-draw_knob(20, 200, 26, "Vol", 1, 0, 1, 0, 0, sprintf(#, "%.2f", slider(26)));
+draw_knob(20, 200, 27, "Vol", 1, 0, 1, 0, 0, sprintf(#, "%.2f", slider(27)));
 
 set_color(0x666666);
 gfx_x = 140; gfx_y = 180;
 gfx_drawstr("EQ");
 
-draw_knob(160, 200, 23, "Freq", 440, 20, 22050, 1, 0, sprintf(#, "%i Hz", slider(23)));
-draw_knob(220, 200, 24, "Gain", 0, -18, 18, 0, 1, sprintf(#, "%.2f", slider(24)));
-draw_knob(280, 200, 25, "Q", 0.5, 0.01, 100, 1, 0, sprintf(#, "%.2f", slider(25)));
+draw_knob(160, 200, 24, "Freq", 440, 20, 22050, 1, 0, sprintf(#, "%i Hz", slider(23)));
+draw_knob(220, 200, 25, "Gain", 0, -18, 18, 0, 1, sprintf(#, "%.2f", slider(24)));
+draw_knob(280, 200, 26, "Q", 0.5, 0.01, 100, 1, 0, sprintf(#, "%.2f", slider(25)));
 
 mouse.left && mouse.dy != 0 && selknob_nslider ? (
   selknob_is_log ? (
@@ -300,6 +325,8 @@ mouse.left && mouse.dy != 0 && selknob_nslider ? (
   slider(selknob_nslider) > selknob_max ? slider(selknob_nslider) = selknob_max;
   slider(selknob_nslider) < selknob_min ? slider(selknob_nslider) = selknob_min;
   on_slider();
+  sliderchange(slider(selknob_nslider));
+  slider_automate(slider(selknob_nslider));
 );
 
 gfx_setcursor(selknob_nslider ? 32511 : 0);
