@@ -1,9 +1,9 @@
 desc:dp.gfxlib.jsfx-inc
 
 @init
-function deg2rad (deg) (
-  deg * $pi / 180;
-);
+
+function deg2rad (deg) (deg * $pi / 180;);
+RAD130 = deg2rad(130);
 
 function set_color(color) (
   gfx_r = (color & 0xFF0000) / 0xFF0000;
@@ -39,11 +39,10 @@ function mouse_in_rect (x, y, w ,h) (
 
 function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, val_label) (
   set_color(0x282D32);
-  rad130 = deg2rad(130);
-  gfx_arc(x+20, y+20, 20, -rad130, rad130, 1);
-  gfx_arc(x+20, y+20, 19.5, -rad130, rad130, 1);
-  gfx_arc(x+20, y+20, 19, -rad130, rad130, 1);
-  gfx_arc(x+20, y+20, 18.5, -rad130, rad130, 1);
+  gfx_arc(x+20, y+20, 20, -RAD130, RAD130, 1);
+  gfx_arc(x+20, y+20, 19.5, -RAD130, RAD130, 1);
+  gfx_arc(x+20, y+20, 19, -RAD130, RAD130, 1);
+  gfx_arc(x+20, y+20, 18.5, -RAD130, RAD130, 1);
 
   slider_val = slider(nslider);
   is_log ? (
@@ -60,18 +59,18 @@ function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, va
   set_color(0x5DBEE4);
   gfx_circle(x+20-sin(-slider_rad)*10, y+20-cos(-slider_rad)*10, 3, 1);
 
-  gfx_arc(x+20, y+20, 20, is_sym ? 0 : -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 19.5, is_sym ? 0 : -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 19, is_sym ? 0 : -rad130, slider_rad, 1);
-  gfx_arc(x+20, y+20, 18.5, is_sym ? 0 : -rad130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 20, is_sym ? 0 : -RAD130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 19.5, is_sym ? 0 : -RAD130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 19, is_sym ? 0 : -RAD130, slider_rad, 1);
+  gfx_arc(x+20, y+20, 18.5, is_sym ? 0 : -RAD130, slider_rad, 1);
 
   set_color(0xFFFFFF);
-  gfx_x = x - 40;
+  gfx_x = x - 20;
   gfx_y = y + 20 * 2 + 5;
   selknob_nslider == nslider ? (
-    gfx_drawstr(val_label, 1, x+40+20*2, y+100);
+    gfx_drawstr(val_label, 1, x+20+20*2, y+100);
   ) : (
-    gfx_drawstr(label, 1, x+40+20*2, y+100);
+    gfx_drawstr(label, 1, x+20+20*2, y+100);
   );
 
   mouse_in_rect(x, y, 40, 40) ? (
@@ -83,4 +82,16 @@ function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, va
       selknob_is_log = is_log;
     );
   );
+);
+
+function draw_button (x, y, w, label, toggled) (
+  set_color(0x5DBEE4);
+  gfx_rect(x, y - 2, w, 10 + 2);
+  gfx_x = x; gfx_y = y;
+  !toggled ? (
+    set_color(0x141618);
+    gfx_rect(x+1, y+1-2, w-2, 10);
+  );
+  set_color(toggled ? 0xFFFFFF : 0x5DBEE4);
+  gfx_drawstr(label, 1, x+w, y+10);
 );
