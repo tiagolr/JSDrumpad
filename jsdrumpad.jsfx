@@ -9,7 +9,7 @@ import dp.gfxlib.jsfx-inc
 slider1:mix=0<-1, 1, .01>-Mix (Osc - Noise)
 slider2:vol=-12<-90, 0, .01>-Volume
 slider3:pan=0<-1, 1, .01>-Pan
-slider4:distortion=0<0, 1, .01>-Distortion
+slider4:distortion=0<0, 48, 0.1>-Drive Db
 
 slider5:osc_freq=440<20, 10000, 1:log>-Frequency (Hz)
 slider6:osc_wave=0<0, 3, 1{Sine,Triangle,Saw,Square}>-Wave
@@ -70,6 +70,11 @@ function make_wave(cycle) (
       : square_wave(cycle)
 );
 
+function get_note_name() (
+  note = freq2note(osc_freq);
+  sprintf(#, "%s%i", notes[note % 12], floor(note / 12) - 1);
+);
+
 function envelope_refresh()
 local (shape, att_shape, dec_shape)
 (
@@ -102,6 +107,7 @@ local (shape, att_shape, dec_shape)
 );
 
 function on_slider() (
+  tube = db2gain(distortion);
   gain = db2gain(vol);
   drive = 2*min(distortion, 0.999)/(1-min(distortion, 0.999));
   noise_lowpass.rbj_lp(noise_cutoff, 0.5);
@@ -118,12 +124,34 @@ function on_slider() (
   envelope_refresh();
 );
 
-function get_note_name() (
-  note = freq2note(osc_freq);
-  sprintf(#, "%s%i", notes[note % 12], floor(note / 12) - 1);
+// Distortion
+function rc_set(rc)
+  instance(a) (
+    a = 1 / (rc * srate + 1);
+);
+function rc_lp(sample)
+  instance(lp, a) (
+    lp += a * (sample - lp);
+);
+function smooth()
+  instance (lp, smooth) (
+    lp = smooth;
+    smooth = this.rc_lp(this);
+);
+function tanh(x) (
+  (exp(2*x) - 1) / (exp(2*x) + 1);
+);
+dc = 0.05;
+tanh_dc = tanh(dc);
+function amp(x) (
+  tanh(this.smooth * x + dc) - tanh_dc;
 );
 
+tube.rc_set(0.0033);
+tube.smooth = db2gain(distortion);
+
 @slider
+
 on_slider();
 
 @block
@@ -207,8 +235,12 @@ note_on ? (
   spl1 = eq.rbj_df1_1(noise_r + wave_r);
 
   distortion > 0 ? (
-    spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
-    spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
+    //spl0 = (1+drive)*spl0/(1+drive*abs(spl0));
+    //spl1 = (1+drive)*spl1/(1+drive*abs(spl1));
+    tube.smooth();
+    //tube_gain = 9/50 + 1/(tube.smooth + 9/41 * sqr(tube.smooth));
+    spl0 = tube.amp(spl0);
+    spl1 = tube.amp(spl1);
   );
 
   vel_mult = min(note_vel + (1 - vel_vol), 1);
@@ -228,7 +260,7 @@ gfx_drawstr("MIX");
 draw_knob(20, 40, 1, "Mix", 0, -1, 1, 0, 1, sprintf(#, "%.2f", slider(1)));
 draw_knob(80, 40, 2, "Vol", -12, -90, 0, 0, 0, sprintf(#, "%.1f Db", slider(2)));
 draw_knob(20, 110, 3, "Pan", 0, -1, 1, 0, 1, sprintf(#, "%.2f", slider(3)));
-draw_knob(80, 110, 4, "Drive", 0, 0, 1, 0, 0, sprintf(#, "%.2f", slider(4)));
+draw_knob(80, 110, 4, "Drive", 0, 0, 48, 0, 0, sprintf(#, "%.1f Db", slider(4)));
 
 set_color(0x666666);
 gfx_line(140, 40, 140, 170);
@@ -244,7 +276,7 @@ shape_name = osc_wave == 0 ? "Sin" : osc_wave == 1 ? "Tri" : osc_wave == 2 ? "Sa
 draw_button(220, 20, 40, shape_name, 0);
 mouse.left_click && mouse_in_rect(220, 20 - 2, 40, 10 + 2) ? (
   gfx_x = 220; gfx_y = 30;
-  choice = gfx_showmenu("Sin|Tri|Saw|Sqr");
+  choice = gfx_showmenu("Sine|Triangle|Saw|Square");
   slider(6) = max(choice - 1, 0);
 );
 
@@ -313,16 +345,16 @@ set_color(0x666666);
 gfx_x = 140; gfx_y = 180;
 gfx_drawstr("EQ");
 
-draw_knob(160, 200, 24, "Freq", 440, 20, 22050, 1, 0, sprintf(#, "%i Hz", slider(23)));
-draw_knob(220, 200, 25, "Gain", 0, -18, 18, 0, 1, sprintf(#, "%.2f", slider(24)));
-draw_knob(280, 200, 26, "Q", 0.5, 0.01, 100, 1, 0, sprintf(#, "%.2f", slider(25)));
+draw_knob(160, 200, 24, "Freq", 440, 20, 22050, 1, 0, sprintf(#, "%i Hz", slider(24)));
+draw_knob(220, 200, 25, "Gain", 0, -18, 18, 0, 1, sprintf(#, "%.2f Db", slider(25)));
+draw_knob(280, 200, 26, "Q", 0.5, 0.01, 100, 1, 0, sprintf(#, "%.2f", slider(26)));
 
 function on_knob_move (nslider, slider_min, slider_max, slider_is_log, factor) (
+  factor *= mouse.control ? 0.05 : 1;
   slider_is_log ? (
-    slider(nslider) = slider(nslider) * pow(100, -factor * 0.01 * (mouse.control ? 0.05 : 1));
+    slider(nslider) = slider(nslider) * pow(100, -factor * 0.01);
   ) : (
     inc = (slider_max - slider_min) / 100 * -factor;
-    mouse.control ? inc *= 0.05;
     slider(nslider) += inc;
   );
 
@@ -333,12 +365,12 @@ function on_knob_move (nslider, slider_min, slider_max, slider_is_log, factor) (
   slider_automate(slider(nslider));
 );
 
-mouse.left && mouse.dy != 0 && selknob_nslider ? (
+selknob_nslider && mouse.left && mouse.dy != 0 ? (
   on_knob_move(selknob_nslider, selknob_min, selknob_max, selknob_is_log, mouse.dy);
 );
 
 wheelknob_nslider ? (
-  on_knob_move(wheelknob_nslider, wheelknob_min, wheelknob_max, wheelknob_is_log, mouse.wheel * -3);
+  on_knob_move(wheelknob_nslider, wheelknob_min, wheelknob_max, wheelknob_is_log, mouse.wheel * -7);
 );
 
 gfx_setcursor(selknob_nslider ? 32511 : 0);

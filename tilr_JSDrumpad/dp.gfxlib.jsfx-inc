@@ -91,9 +91,7 @@ function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, va
       selknob_max = _max;
       selknob_is_log = is_log;
     );
-    ARG = 0;
     mouse.wheel ? (
-      ARG = nslider;
       wheelknob_nslider = nslider;
       wheelknob_min = _min;
       wheelknob_max = _max;
