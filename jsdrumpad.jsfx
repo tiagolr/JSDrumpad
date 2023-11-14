@@ -236,8 +236,8 @@ note_on ? (
   (filter_shape == 2 && filter_freq > 20) ?
   (
     filter_sel == 0 ? (
-      noise_l = noise_filter.zdf_svf0(noise_l);
-      noise_r = noise_filter.zdf_svf1(noise_r);
+      noise_l = noise_filter.zdf_svf0(noise_l) / exp(filter_q);
+      noise_r = noise_filter.zdf_svf1(noise_r) / exp(filter_q);
       1;
     );
     filter_sel == 1 ? (
