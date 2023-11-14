@@ -1,5 +1,6 @@
 desc:JSDrumpad
 tags: drum synth, instrument
+author: TiagoLr
 
 import dp.envlib.jsfx-inc
 import dp.mouselib.jsfx-inc
@@ -48,6 +49,7 @@ osc_cycle = 0;
 note_on = 0;
 note_vel = 0;
 note_counter = 0;
+notes = 0;
 notes[0]="C";notes[1]="C#";notes[2]="D";notes[3]="D#";
 notes[4]="E";notes[5]="F";notes[6]="F#";notes[7]="G";
 notes[8]="G#";notes[9]="A";notes[10]="A#";notes[11]="B";
@@ -123,7 +125,7 @@ function on_slider() (
   envelope_refresh();
 );
 
-// Distortion
+// Parameter smoothing
 function rc_set(rc)
   instance(a) (
     a = 1 / (rc * srate + 1);
@@ -137,17 +139,22 @@ function smooth()
     lp = smooth;
     smooth = this.rc_lp(this);
 );
+
+tube.rc_set(0.0033);
+tube.smooth = db2gain(distortion);
+vel_mult.rc_set(0.0066);
+vel_mult.smooth = 0;
+
+// Distortion
 function tanh(x) (
-  (exp(2*x) - 1) / (exp(2*x) + 1);
+  x = exp(2*x);
+  (x - 1) / (x + 1);
 );
 dc = 0.05;
 tanh_dc = tanh(dc);
 function amp(x) (
   tanh(this.smooth * x + dc) - tanh_dc;
 );
-
-tube.rc_set(0.0033);
-tube.smooth = db2gain(distortion);
 
 @slider
 
@@ -156,10 +163,10 @@ on_slider();
 @block
 
 while (midirecv(offset, msg1, note, vel)) (
-  event = msg1 & 0xF0;  // apply mask to determine event
-  channel = msg1 & 0x0F;  // apply mask to determine channel
+  event = msg1 & 0xF0;
+  channel = msg1 & 0x0F;
 
-  event == 0x90 && vel > 0 ? (
+  event == 0x90 && vel > 0 ? ( // NOTEON
     note_on = 1;
     note_vel = vel / 127;
     note_counter = 0;
@@ -251,8 +258,8 @@ note_on ? (
   outr = eq.rbj_df1_1(outr);
 
   vel_mult = min(note_vel + (1 - vel_vol), 1);
-  spl0 += outl * gain * vel_mult;
-  spl1 += outr * gain * vel_mult;
+  spl0 += outl * gain * vel_mult.smooth();
+  spl1 += outr * gain * vel_mult.smooth();
 );
 
 @gfx 700 280

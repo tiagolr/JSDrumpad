@@ -3,7 +3,7 @@ desc: dp.envlib.jsfx-inc
 
 /*
 Envlib 1.0 by tilr
-based of zenvelib.v1 by dwelx
+modified version of zenvelib.v1 by dwelx
 REAPER v7+ 2023
 -----------------------------------
 Library for triggered Delay-Attack-Decay-Sustain-Release
