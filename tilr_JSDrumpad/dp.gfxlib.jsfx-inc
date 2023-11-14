@@ -12,6 +12,8 @@ wheelknob_min = 0;
 wheelknob_max = 0;
 wheelknob_is_log = 0;
 
+doubleclk_nslider = 0;
+
 function deg2rad (deg) (deg * $pi / 180;);
 RAD130 = deg2rad(130);
 
@@ -84,7 +86,10 @@ function draw_knob(x, y, nslider, label, default, _min, _max, is_log, is_sym, va
   );
 
   mouse_in_rect(x, y, 40, 40) ? (
-    mouse.double_click ? slider(nslider) = default;
+    mouse.double_click ? (
+      slider(nslider) = default;
+      doubleclk_nslider = nslider;
+    );
     mouse.left_click ? (
       selknob_nslider = nslider;
       selknob_min = _min;
