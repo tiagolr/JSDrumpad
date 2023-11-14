@@ -145,13 +145,13 @@ function on_slider() (
   gain = db2gain(vol);
   noise_lowpass.zdf_lp(noise_cutoff, 0.70, 12);
   filter_shape == 0 ? (
-    noise_filter.zdf_lp(filter_freq, filter_q, 12);
+    noise_filter.zdf_lp(filter_freq, filter_q, 1);
   );
   filter_shape == 1 ? (
     noise_filter.zdf_bp2(filter_freq, filter_q);
   );
   filter_shape == 2 ? (
-    noise_filter.zdf_hp(filter_freq, filter_q, 12);
+    noise_filter.zdf_hp(filter_freq, filter_q, 1);
   );
   eq.zdf_eq(eq_freq, eq_q, db2gain(eq_gain));
   envelope_refresh();
@@ -235,18 +235,19 @@ note_on ? (
   (filter_shape == 1) ||
   (filter_shape == 2 && filter_freq > 20) ?
   (
+    mult = filter_shape == 1 ? filter_q : 1;
     filter_sel == 0 ? (
-      noise_l = noise_filter.zdf_svf0(noise_l) / exp(filter_q);
-      noise_r = noise_filter.zdf_svf1(noise_r) / exp(filter_q);
+      noise_l = noise_filter.zdf_svf0(noise_l) * mult;
+      noise_r = noise_filter.zdf_svf1(noise_r) * mult;
       1;
     );
     filter_sel == 1 ? (
-      wave_l = noise_filter.zdf_svf0(wave_l);
-      wave_r = noise_filter.zdf_svf1(wave_r);
+      wave_l = noise_filter.zdf_svf0(wave_l) * mult;
+      wave_r = noise_filter.zdf_svf1(wave_r) * mult;
     );
     filter_sel == 2 ? (
-      outl = noise_filter.zdf_svf0(wave_l + noise_l);
-      outr = noise_filter.zdf_svf1(wave_r + noise_r);
+      outl = noise_filter.zdf_svf0(wave_l + noise_l) * mult;
+      outr = noise_filter.zdf_svf1(wave_r + noise_r) * mult;
       signal_merged = 1;
     );
   );
