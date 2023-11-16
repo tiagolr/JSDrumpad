@@ -41,7 +41,7 @@ slider26:eq_q=0.70<0.01, 40, 0.01:log>-EQ Q
 
 slider27:vel_vol=0<0, 1, 0.01>-Velocity volume
 
-options:gfx_hz=60;
+options:gfx_hz=60 no_meter
 
 @init
 
@@ -126,7 +126,7 @@ function smooth()
 tube.rc_set(0.0033);
 tube.smooth = db2gain(distortion);
 vel_mult.rc_set(0.0066);
-vel_mult.smooth = 0;
+vel_mult.smooth = 1;
 
 // Distortion
 function tanh(x) (
@@ -143,23 +143,23 @@ function amp(x) (
 function on_slider() (
   tube = db2gain(distortion);
   gain = db2gain(vol);
-  noise_lowpass.zdf_lp(noise_cutoff, 0.70, 12);
+  noise_lowpass.svf_lp(noise_cutoff, 0.70, 12);
   filter_shape == 0 ? (
-    noise_filter.zdf_lp(filter_freq, filter_q, 1);
+    noise_filter.svf_lp(filter_freq, filter_q, 1);
   );
   filter_shape == 1 ? (
-    noise_filter.zdf_bp2(filter_freq, filter_q);
+    noise_filter.svf_bp2(filter_freq, filter_q);
   );
   filter_shape == 2 ? (
-    noise_filter.zdf_hp(filter_freq, filter_q, 1);
+    noise_filter.svf_hp(filter_freq, filter_q, 1);
   );
-  eq.zdf_eq(eq_freq, eq_q, db2gain(eq_gain));
+  eq.svf_eq(eq_freq, eq_q, db2gain(eq_gain));
   envelope_refresh();
 );
 
-noise_filter.zdf_set_sample_rate(srate);
-noise_lowpass.zdf_set_sample_rate(srate);
-eq.zdf_set_sample_rate(srate);
+noise_filter.svf_set_sample_rate(srate);
+noise_lowpass.svf_set_sample_rate(srate);
+eq.svf_set_sample_rate(srate);
 
 @slider
 
@@ -186,6 +186,13 @@ while (midirecv(offset, msg1, note, vel)) (
 
 @sample
 
+last_play_state == 0 && play_state ? (
+  eq.svf_single_set_to_target();
+  noise_lowpass.svf_single_set_to_target();
+  noise_filter.svf_single_set_to_target();
+);
+last_play_state = play_state;
+
 note_on ? (
   note_counter += 1 / srate * 1000;
   note_counter > osc_att + osc_dec && note_counter > noise_att + noise_dec ? (
@@ -206,10 +213,10 @@ note_on ? (
   noise_l = make_noise() * noise_envelope.env;
   noise_r = noise_stereo ? make_noise() * noise_envelope.env : noise_l;
 
-  noise_lowpass.zdf_tick();
   noise_cutoff < 22000 ? (
-    noise_l = noise_lowpass.zdf_svf0(noise_l);
-    noise_r = noise_lowpass.zdf_svf1(noise_r);
+    noise_lowpass.svf_tick();
+    noise_l = noise_lowpass.svf_svf0(noise_l);
+    noise_r = noise_lowpass.svf_svf1(noise_r);
   );
 
   mix < 0 ? (
@@ -230,24 +237,24 @@ note_on ? (
   );
 
   signal_merged = 0;
-  noise_filter.zdf_tick();
   (filter_shape == 0 && filter_freq < 22000) ||
   (filter_shape == 1) ||
   (filter_shape == 2 && filter_freq > 20) ?
   (
+    noise_filter.svf_tick();
     mult = filter_shape == 1 ? filter_q : 1;
     filter_sel == 0 ? (
-      noise_l = noise_filter.zdf_svf0(noise_l) * mult;
-      noise_r = noise_filter.zdf_svf1(noise_r) * mult;
+      noise_l = noise_filter.svf_svf0(noise_l) * mult;
+      noise_r = noise_filter.svf_svf1(noise_r) * mult;
       1;
     );
     filter_sel == 1 ? (
-      wave_l = noise_filter.zdf_svf0(wave_l) * mult;
-      wave_r = noise_filter.zdf_svf1(wave_r) * mult;
+      wave_l = noise_filter.svf_svf0(wave_l) * mult;
+      wave_r = noise_filter.svf_svf1(wave_r) * mult;
     );
     filter_sel == 2 ? (
-      outl = noise_filter.zdf_svf0(wave_l + noise_l) * mult;
-      outr = noise_filter.zdf_svf1(wave_r + noise_r) * mult;
+      outl = noise_filter.svf_svf0(wave_l + noise_l) * mult;
+      outr = noise_filter.svf_svf1(wave_r + noise_r) * mult;
       signal_merged = 1;
     );
   );
@@ -257,15 +264,17 @@ note_on ? (
     outr = noise_r + wave_r;
   );
 
-  distortion > 0 ? (
+  distortion ? (
     tube.smooth();
     outl = tube.amp(outl);
     outr = tube.amp(outr);
   );
 
-  eq.zdf_tick();
-  outl = eq.zdf_svf0(outl);
-  outr = eq.zdf_svf1(outr);
+  eq_gain ? (
+    eq.svf_tick();
+    outl = eq.svf_svf0(outl);
+    outr = eq.svf_svf1(outr);
+  );
 
   vel_mult = min(note_vel + (1 - vel_vol), 1);
   spl0 += outl * gain * vel_mult.smooth();
