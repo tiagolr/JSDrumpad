@@ -30,7 +30,7 @@ slider17:noise_att=1<1,5000, 1:log>-Noise attack
 slider18:noise_dec=70<1,5000, 1:log>-Noise decay
 slider19:noise_shape=0<-1, 1, 0.01>-Noise shape
 
-slider20:filter_shape=0<0,3,1{Low Pass, Band Pass, High Pass}>-Filter shape
+slider20:filter_shape=0<0,3,1{Low Pass,Band Pass,High Pass}>-Filter shape
 slider21:filter_freq=22050<20, 22050, 1:log>-Filter frequency
 slider22:filter_q=0.70<0.01, 40, 0.01:log>-Filter Q
 slider23:filter_sel=0<1, 0, 1{Noise,Osc,Both}>-Filter target
